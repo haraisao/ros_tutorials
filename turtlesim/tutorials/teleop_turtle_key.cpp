@@ -1,14 +1,27 @@
 #include <ros/ros.h>
 #include <geometry_msgs/Twist.h>
 #include <signal.h>
+#ifndef WIN32
 #include <termios.h>
+#else
+#include <conio.h>
+#include <io.h>
+#endif
 #include <stdio.h>
 
+#ifdef WIN32
+#define KEYCODE_R 0x4d 
+#define KEYCODE_L 0x4b
+#define KEYCODE_U 0x48
+#define KEYCODE_D 0x50
+#define KEYCODE_Q 0x71
+#else
 #define KEYCODE_R 0x43 
 #define KEYCODE_L 0x44
 #define KEYCODE_U 0x41
 #define KEYCODE_D 0x42
 #define KEYCODE_Q 0x71
+#endif
 
 class TeleopTurtle
 {
@@ -38,12 +51,16 @@ TeleopTurtle::TeleopTurtle():
 }
 
 int kfd = 0;
+#ifndef WIN32
 struct termios cooked, raw;
+#endif
 
 void quit(int sig)
 {
   (void)sig;
+#ifndef WIN32
   tcsetattr(kfd, TCSANOW, &cooked);
+#endif
   ros::shutdown();
   exit(0);
 }
@@ -67,7 +84,7 @@ void TeleopTurtle::keyLoop()
   char c;
   bool dirty=false;
 
-
+#ifndef WIN32
   // get the console in raw mode                                                              
   tcgetattr(kfd, &cooked);
   memcpy(&raw, &cooked, sizeof(struct termios));
@@ -76,6 +93,7 @@ void TeleopTurtle::keyLoop()
   raw.c_cc[VEOL] = 1;
   raw.c_cc[VEOF] = 2;
   tcsetattr(kfd, TCSANOW, &raw);
+#endif
 
   puts("Reading from keyboard");
   puts("---------------------------");
@@ -85,12 +103,19 @@ void TeleopTurtle::keyLoop()
   for(;;)
   {
     // get the next event from the keyboard  
+#ifdef WIN32
+    if( (c=_getch()) == 27 )
+    {
+      perror("...terminate");
+      return;
+    }
+#else
     if(read(kfd, &c, 1) < 0)
     {
       perror("read():");
       exit(-1);
     }
-
+#endif
     linear_=angular_=0;
     ROS_DEBUG("value: 0x%02X\n", c);
   
